@@ -180,7 +180,7 @@ class BinshopsBlogPost extends Model implements SearchResultInterface
         return strlen($this->{"image_" . $size});
     }
 
-    public function imageUrl(string $sizeBasicKey = 'medium'): ?string
+    public function image_url(string $sizeBasicKey = 'medium'): ?string
     {
         $column   = str_starts_with($sizeBasicKey, 'image_') ? $sizeBasicKey : 'image_'.$sizeBasicKey;
         $filename = $this->{$column} ?? null;
@@ -200,7 +200,7 @@ class BinshopsBlogPost extends Model implements SearchResultInterface
 
     public function image_tag(string $sizeBasicKey = 'medium', bool $lazy = true, string $class = ''): string
     {
-        $url = $this->imageUrl($sizeBasicKey);
+        $url = $this->image_url($sizeBasicKey);
         if (!$url) return '';
 
         $attr = $class ? ' class="'.e($class).'"' : '';

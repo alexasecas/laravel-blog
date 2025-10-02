@@ -49,16 +49,33 @@
         @endphp
 
         <div class="rounded-3 border border-2 border-light bg-white my-3 p-3">
-            <h3 class="h5 mb-1">
-                Image ID: {{ $uploadedPhoto->id }}: {{ $uploadedPhoto->image_title ?? 'Untitled Photo' }}
-            </h3>
-            <h4 class="h6 text-muted">
-                <small title="{{ $uploadedPhoto->created_at }}">
-                    {{ __('Uploaded') }} {{ $uploadedPhoto->created_at->diffForHumans() }}
-                </small>
-            </h4>
+            <div class="d-flex justify-content-between align-items-start gap-2">
+                <div>
+                    <h3 class="h5 mb-1">
+                        Image ID: {{ $uploadedPhoto->id }}: {{ $uploadedPhoto->image_title ?? 'Untitled Photo' }}
+                    </h3>
+                    <h4 class="h6 text-muted mb-0">
+                        <small title="{{ $uploadedPhoto->created_at }}">
+                            {{ __('Uploaded') }} {{ $uploadedPhoto->created_at->diffForHumans() }}
+                        </small>
+                    </h4>
+                </div>
 
-            <div class="row">
+                {{-- Remove ALL variants for this upload log --}}
+                <form method="POST"
+                    action="{{ route('binshopsblog.admin.images.delete_log') }}"
+                    onsubmit="return confirm('Delete ALL variants for this upload entry? This cannot be undone.');">
+                    @csrf
+                    @method('DELETE')
+                    <input type="hidden" name="uploaded_photo_id" value="{{ $uploadedPhoto->id }}">
+                    <input type="hidden" name="return" value="{{ url()->full() }}">
+                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                        <i class="bi bi-trash me-1"></i> Remove all variants
+                    </button>
+                </form>
+            </div>
+
+            <div class="row mt-3">
                 <div class="col-md-8">
                     <div class="row g-3 p-2" style="background:#eee; overflow:auto;">
                         @foreach ($files as $f)
@@ -70,20 +87,37 @@
                                     @if($f['w'] && $f['h']) — {{ $f['w'] }} × {{ $f['h'] }} @endif
                                 </h6>
 
-                                <p class="text-center mb-2">
+                                <div class="d-flex justify-content-center align-items-center gap-2 mb-2">
                                     @if($f['exists'] && $f['url'])
-                                        <a href="{{ $f['url'] }}" target="_blank" rel="noopener">[link]</a>
-                                        /
+                                        <a class="btn btn-link btn-sm" href="{{ $f['url'] }}" target="_blank" rel="noopener">[link]</a>
+
                                         <button type="button"
                                                 class="btn btn-sm btn-primary"
                                                 style="cursor:zoom-in"
                                                 onclick="show_uploaded_file_row('{{ $rowId }}','{{ $f['url'] }}')">
                                             show
                                         </button>
+
+                                        {{-- Remove THIS file variant --}}
+                                        <form method="POST"
+                                              action="{{ route('binshopsblog.admin.images.delete') }}"
+                                              onsubmit="return confirm('Delete this file variant?');"
+                                              class="d-inline">
+                                            @csrf
+                                            @method('DELETE')
+                                            <input type="hidden" name="filename" value="{{ $f['name'] }}">
+                                            <input type="hidden" name="key" value="{{ $f['key'] }}">
+                                            <input type="hidden" name="image_id" value="{{ $uploadedPhoto->id }}">
+                                            <input type="hidden" name="cleanup_log" value="1">
+                                            <input type="hidden" name="return" value="{{ url()->full() }}">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                <i class="bi bi-trash me-1"></i> Remove
+                                            </button>
+                                        </form>
                                     @else
                                         <span class="badge text-bg-warning">Missing on {{ $disk }}</span>
                                     @endif
-                                </p>
+                                </div>
 
                                 <div id="{{ $rowId }}"></div>
                             </div>
@@ -96,7 +130,7 @@
                             <div class="col-md-6 {{ $rowId }}" style="display:none;">
                                 <small class="text-muted d-block">img tag</small>
                                 <input type="text" readonly class="form-control"
-                                       value='{{ $f["url"] ? "<img src=\"{$f["url"]}\" alt=\"".e($uploadedPhoto->image_title)."\" />" : "" }}'>
+                                       value='{{ $f["url"] ? "<img src=\"{$f["url"]}\" alt=\"" . e($uploadedPhoto->image_title) . "\" />" : "" }}'>
                             </div>
                         @endforeach
                     </div>

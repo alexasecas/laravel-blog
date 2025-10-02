@@ -187,10 +187,13 @@ class BinshopsBlogPost extends Model implements SearchResultInterface
         if (!$filename) return null;
 
         $disk = config('binshopsblog.image_disk', 'public');
-        $dir  = trim(str_replace('\\', '/', config('binshopsblog.blog_upload_dir', 'blog')), '/');
+        
+        $dirRaw = config('binshopsblog.blog_upload_dir', 'blog');
+        $dir    = trim(str_replace('\\', '/', (string) $dirRaw), '/');
+        $filenameNorm = ltrim(str_replace('\\', '/', (string) $filename), '/');
 
-        // Build normalized key (no leading slash, no backslashes)
-        $key = ltrim($dir . '/' . ltrim(str_replace('\\', '/', $filename), '/'), '/');
+        $key = $dir !== '' ? ($dir . '/' . $filenameNorm) : $filenameNorm;
+        $key = preg_replace('~[\\\\/]+~', '/', $key);
 
         return \Storage::disk($disk)->url($key);
     }

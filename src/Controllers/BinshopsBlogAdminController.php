@@ -132,14 +132,15 @@ class BinshopsBlogAdminController extends Controller
         $post = BinshopsBlogPost::where("slug", $postSlug)->firstOrFail();
 
         $disk = config('binshopsblog.image_disk', 'public');
-        $dir  = trim(config('binshopsblog.blog_upload_dir', 'blog'), '/');
+        $dir  = trim(str_replace('\\','/', config('binshopsblog.blog_upload_dir', 'blog')), '/');
 
         foreach (['image_large', 'image_medium', 'image_thumbnail'] as $col) {
-            $file = $post->{$col};
-            if ($file) {
-                Storage::disk($disk)->delete($dir . '/' . $file);
+            if ($file = $post->{$col}) {
+                $key  = $dir !== '' ? ($dir . '/' . ltrim(str_replace('\\','/',$file), '/')) : ltrim(str_replace('\\','/',$file), '/');
+                $key  = preg_replace('~[\\\\/]+~', '/', $key);     // ✅
+                \Storage::disk($disk)->delete($key);
+                $post->{$col} = null;
             }
-            $post->{$col} = null;
         }
 
         $post->save();

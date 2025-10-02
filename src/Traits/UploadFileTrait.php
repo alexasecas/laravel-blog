@@ -87,7 +87,8 @@ trait UploadFileTrait
 
         $disk = $this->imageDisk();          // e.g. 'public' or 'blog' (S3)
         $dir  = $this->imageDir();           // e.g. 'blog'
-        $path = ltrim($dir . '/' . $image_filename, '/');
+        $path = $dir !== '' ? ($dir . '/' . $image_filename) : $image_filename;
+        $path = preg_replace('~[\\\\/]+~', '/', $path);
 
         // Resize with Intervention Image
         // (keeps your existing alias; switch to Image::read if you use Intervention v3)

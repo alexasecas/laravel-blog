@@ -129,78 +129,64 @@ class BinshopsBlogAdminController extends Controller
 
     public function remove_photo($postSlug)
     {
+        /** @var \BinshopsBlog\Models\BinshopsBlogPost $post */
         $post = \BinshopsBlog\Models\BinshopsBlogPost::where('slug', $postSlug)->firstOrFail();
 
         $disk = config('binshopsblog.image_disk', 'public');
-        $dir  = trim(str_replace('\\','/', config('binshopsblog.blog_upload_dir', 'images')), '/');
+        $dir  = trim(str_replace('\\', '/', config('binshopsblog.blog_upload_dir', 'images')), '/');
 
-        $columns  = ['image_large', 'image_medium', 'image_thumbnail'];
-        $deleted  = [];
-        $missing  = [];
+        $columns = ['image_large', 'image_medium', 'image_thumbnail'];
 
+        // Collect filenames before we null them (we'll use them to clean uploaded_photos table)
+        $filenames = [];
         foreach ($columns as $col) {
-            $file = $post->{$col};
-            if (!$file) {
-                continue;
+            if (!empty($post->{$col})) {
+                $filenames[] = ltrim(str_replace('\\', '/', $post->{$col}), '/');
             }
+        }
 
-            $base = ltrim(str_replace('\\','/',$file), '/');
-
+        // Delete files on disk (try a few candidate key shapes)
+        foreach ($filenames as $base) {
             $candidates = [];
-            $candidates[] = $dir !== '' ? ($dir . '/' . $base) : $base;   // images/foo.jpg
-            $candidates[] = $base;                                        // foo.jpg
-            if ($dir !== '' && str_starts_with($base, $dir.'/')) {
-                $candidates[] = $base;                                    // images/foo.jpg (legacy stored with dir)
+            $candidates[] = $dir !== '' ? ($dir . '/' . $base) : $base; // "images/foo.jpg"
+            $candidates[] = $base;                                      // "foo.jpg"
+            if ($dir !== '' && str_starts_with($base, $dir . '/')) {
+                $candidates[] = $base;                                  // legacy already-prefixed
             }
-
             $candidates = array_values(array_unique(array_map(
                 fn ($k) => preg_replace('~[\\\\/]+~', '/', ltrim($k, '/')),
                 $candidates
             )));
-
-            // Try delete (returns bool for first item, but we don’t rely on it)
             \Storage::disk($disk)->delete($candidates);
-
-            // Optional: check, but don't *gate* DB update on this
-            $anyLeft = false;
-            foreach ($candidates as $k) {
-                if (\Storage::disk($disk)->exists($k)) {
-                    $anyLeft = true;
-                    break;
-                }
-            }
-
-            if ($anyLeft) {
-                $missing[$col] = $candidates;
-            } else {
-                $deleted[$col] = $file;
-            }
         }
 
-        // Always clear the DB columns we attempted to remove (avoid S3 eventual consistency issues)
+        // ALWAYS null the DB columns (avoid S3 eventual-consistency gate)
         $toNull = [];
         foreach ($columns as $col) {
-            if (!empty($post->{$col})) {
+            if (!is_null($post->{$col})) {
                 $toNull[$col] = null;
             }
         }
         if ($toNull) {
-            // forceFill bypasses $fillable restrictions
-            $post->forceFill($toNull)->save();
+            $post->forceFill($toNull)->save(); // forceFill bypasses $fillable
         }
 
-        if ($missing) {
-            \BinshopsBlog\Helpers::flash_message("Removed files from storage, but some keys may still exist (cache/consistency). DB cleared.");
-            \Log::warning('Blog remove_photo: some keys may still exist after delete()', [
-                'post_id' => $post->id,
-                'disk'    => $disk,
-                'missing' => $missing,
-                'deleted' => $deleted,
-            ]);
-        } else {
-            \BinshopsBlog\Helpers::flash_message('Photo removed');
+        // Also delete the "uploaded images log" rows that reference these filenames
+        if (!empty($filenames)) {
+            \BinshopsBlog\Models\BinshopsBlogUploadedPhoto::query()
+                ->where(function ($q) use ($filenames) {
+                    foreach ($filenames as $fn) {
+                        // match any of the size slots that may contain this filename
+                        $q->orWhereJsonContains('uploaded_images->image_large->filename', $fn)
+                        ->orWhereJsonContains('uploaded_images->image_medium->filename', $fn)
+                        ->orWhereJsonContains('uploaded_images->image_thumbnail->filename', $fn)
+                        ->orWhereJsonContains('uploaded_images->BinshopsBlog_full_size->filename', $fn);
+                    }
+                })
+                ->delete();
         }
 
+        \BinshopsBlog\Helpers::flash_message('Photo removed (files, post columns, and upload log).');
         return redirect($post->edit_url());
     }
 

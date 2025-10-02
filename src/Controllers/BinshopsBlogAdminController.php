@@ -129,23 +129,78 @@ class BinshopsBlogAdminController extends Controller
 
     public function remove_photo($postSlug)
     {
-        $post = BinshopsBlogPost::where("slug", $postSlug)->firstOrFail();
+        $post = \BinshopsBlog\Models\BinshopsBlogPost::where('slug', $postSlug)->firstOrFail();
 
         $disk = config('binshopsblog.image_disk', 'public');
-        $dir  = trim(str_replace('\\','/', config('binshopsblog.blog_upload_dir', 'blog')), '/');
+        $dir  = trim(str_replace('\\','/', config('binshopsblog.blog_upload_dir', 'images')), '/');
 
-        foreach (['image_large', 'image_medium', 'image_thumbnail'] as $col) {
-            if ($file = $post->{$col}) {
-                $key  = $dir !== '' ? ($dir . '/' . ltrim(str_replace('\\','/',$file), '/')) : ltrim(str_replace('\\','/',$file), '/');
-                $key  = preg_replace('~[\\\\/]+~', '/', $key);     // ✅
-                \Storage::disk($disk)->delete($key);
-                $post->{$col} = null;
+        $columns  = ['image_large', 'image_medium', 'image_thumbnail'];
+        $deleted  = [];
+        $missing  = [];
+
+        foreach ($columns as $col) {
+            $file = $post->{$col};
+            if (!$file) {
+                continue;
+            }
+
+            $base = ltrim(str_replace('\\','/',$file), '/');
+
+            $candidates = [];
+            $candidates[] = $dir !== '' ? ($dir . '/' . $base) : $base;   // images/foo.jpg
+            $candidates[] = $base;                                        // foo.jpg
+            if ($dir !== '' && str_starts_with($base, $dir.'/')) {
+                $candidates[] = $base;                                    // images/foo.jpg (legacy stored with dir)
+            }
+
+            $candidates = array_values(array_unique(array_map(
+                fn ($k) => preg_replace('~[\\\\/]+~', '/', ltrim($k, '/')),
+                $candidates
+            )));
+
+            // Try delete (returns bool for first item, but we don’t rely on it)
+            \Storage::disk($disk)->delete($candidates);
+
+            // Optional: check, but don't *gate* DB update on this
+            $anyLeft = false;
+            foreach ($candidates as $k) {
+                if (\Storage::disk($disk)->exists($k)) {
+                    $anyLeft = true;
+                    break;
+                }
+            }
+
+            if ($anyLeft) {
+                $missing[$col] = $candidates;
+            } else {
+                $deleted[$col] = $file;
             }
         }
 
-        $post->save();
+        // Always clear the DB columns we attempted to remove (avoid S3 eventual consistency issues)
+        $toNull = [];
+        foreach ($columns as $col) {
+            if (!empty($post->{$col})) {
+                $toNull[$col] = null;
+            }
+        }
+        if ($toNull) {
+            // forceFill bypasses $fillable restrictions
+            $post->forceFill($toNull)->save();
+        }
 
-        Helpers::flash_message("Photo removed");
+        if ($missing) {
+            \BinshopsBlog\Helpers::flash_message("Removed files from storage, but some keys may still exist (cache/consistency). DB cleared.");
+            \Log::warning('Blog remove_photo: some keys may still exist after delete()', [
+                'post_id' => $post->id,
+                'disk'    => $disk,
+                'missing' => $missing,
+                'deleted' => $deleted,
+            ]);
+        } else {
+            \BinshopsBlog\Helpers::flash_message('Photo removed');
+        }
+
         return redirect($post->edit_url());
     }
 

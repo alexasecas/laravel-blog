@@ -69,6 +69,9 @@ class Helpers
         return config("binshopsblog.image_sizes");
     }
 
+    /**
+     * Get a clean URL for a file stored on a disk
+     */
     public static function storage_url_clean(string $disk, string $key): string
     {
         // normalize key defensively
@@ -78,5 +81,5 @@ class Helpers
         // In case any adapter or proxy encoded a backslash, fix the URL too
         return str_replace(['\\', '%5C', '%5c'], '/', $url);
     }
-        
+
 }

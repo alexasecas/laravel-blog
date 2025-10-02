@@ -8,6 +8,7 @@ use Swis\Laravel\Fulltext\Indexable;
 use BinshopsBlog\Interfaces\SearchResultInterface;
 use BinshopsBlog\Scopes\BinshopsBlogPublishedScope;
 use Illuminate\Support\Facades\Storage;
+use BinshopsBlog\Helpers;
 
 /**
  * Class BinshopsBlogPost
@@ -182,20 +183,20 @@ class BinshopsBlogPost extends Model implements SearchResultInterface
 
     public function image_url(string $sizeBasicKey = 'medium'): ?string
     {
+        // map 'medium' -> 'image_medium'
         $column   = str_starts_with($sizeBasicKey, 'image_') ? $sizeBasicKey : 'image_'.$sizeBasicKey;
         $filename = $this->{$column} ?? null;
         if (!$filename) return null;
 
         $disk = config('binshopsblog.image_disk', 'public');
 
-        $dirRaw = config('binshopsblog.blog_upload_dir', 'images');
-        $dir    = trim(str_replace('\\', '/', (string) $dirRaw), '/');
-        $filenameNorm = ltrim(str_replace('\\', '/', (string) $filename), '/');
+        // Normalize dir + filename (forward slashes, no leading slash)
+        $dir  = trim(str_replace('\\', '/', config('binshopsblog.blog_upload_dir', 'images')), '/');
+        $key  = preg_replace('~[\\\\/]+~', '/', ($dir ? "$dir/" : '') . ltrim(str_replace('\\','/',$filename), '/'));
+        $key  = ltrim($key, '/');
 
-        $key = $dir !== '' ? ($dir . '/' . $filenameNorm) : $filenameNorm;
-        $key = preg_replace('~[\\\\/]+~', '/', $key);
-
-        return \Storage::disk($disk)->url($key);
+        // Cleaned URL via your helper (prevents %5C)
+        return Helpers::storage_url_clean($disk, $key);
     }
 
     public function image_tag(string $sizeBasicKey = 'medium', bool $lazy = true, string $class = ''): string
@@ -203,10 +204,11 @@ class BinshopsBlogPost extends Model implements SearchResultInterface
         $url = $this->image_url($sizeBasicKey);
         if (!$url) return '';
 
-        $attr = $class ? ' class="'.e($class).'"' : '';
+        $attr    = $class ? ' class="'.e($class).'"' : '';
         $loading = $lazy ? ' loading="lazy"' : '';
         return '<img src="'.e($url).'" alt="'.e($this->title ?? '').'"'.$attr.$loading.' />';
     }
+
 
     public function generate_introduction($max_len = 500)
     {

@@ -26,7 +26,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Nunito" crossorigin="anonymous">
 
     <!-- Styles -->
-    <link href="{{ asset('binshopsblog_admin.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/blog/binshopsblog_admin.css') }}" rel="stylesheet">
 
 </head>
 <body>
@@ -82,13 +82,6 @@
             <div class='row full-width-div nav-bar-full'>
                 <div class='list-group-color'>
                     @include("binshopsblog_admin::layouts.sidebar")
-                    <div class=' list-group-color text-center mt-5 mb-3 text-muted binshops-version'>
-                        <small><a href='https://github.com/binshops/laravel-blog'>Laravel Blog</a></small>
-
-                        <small>
-                            Version 10.x
-                        </small>
-                    </div>
                 </div>
                 <div class='col-md-9 main-content'>
 

@@ -18,6 +18,7 @@ use BinshopsBlog\Requests\DeleteBinshopsBlogPostRequest;
 use BinshopsBlog\Requests\UpdateBinshopsBlogPostRequest;
 use BinshopsBlog\Traits\UploadFileTrait;
 use Swis\Laravel\Fulltext\Search;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Class BinshopsBlogAdminController
@@ -38,7 +39,6 @@ class BinshopsBlogAdminController extends Controller
             throw new \RuntimeException('The config/binshopsblog.php does not exist. Publish the vendor files for the Binshops Blog package by running the php artisan publish:vendor command');
         }
     }
-
 
     /**
      * View all posts
@@ -131,34 +131,20 @@ class BinshopsBlogAdminController extends Controller
     {
         $post = BinshopsBlogPost::where("slug", $postSlug)->firstOrFail();
 
-        $path = public_path('/' . config("binshopsblog.blog_upload_dir"));
-        if (!$this->checked_blog_image_dir_is_writable) {
-            if (!is_writable($path)) {
-                throw new \RuntimeException("Image destination path is not writable ($path)");
+        $disk = config('binshopsblog.image_disk', 'public');
+        $dir  = trim(config('binshopsblog.blog_upload_dir', 'blog'), '/');
+
+        foreach (['image_large', 'image_medium', 'image_thumbnail'] as $col) {
+            $file = $post->{$col};
+            if ($file) {
+                Storage::disk($disk)->delete($dir . '/' . $file);
             }
+            $post->{$col} = null;
         }
 
-        $destinationPath = $this->image_destination_path();
-
-        if (file_exists($destinationPath.'/'.$post->image_large)) {
-            unlink($destinationPath.'/'.$post->image_large);
-        }
-
-        if (file_exists($destinationPath.'/'.$post->image_medium)) {
-            unlink($destinationPath.'/'.$post->image_medium);
-        }
-
-        if (file_exists($destinationPath.'/'.$post->image_thumbnail)) {
-            unlink($destinationPath.'/'.$post->image_thumbnail);
-        }
-
-        $post->image_large = null;
-        $post->image_medium = null;
-        $post->image_thumbnail = null;
         $post->save();
 
         Helpers::flash_message("Photo removed");
-
         return redirect($post->edit_url());
     }
 

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Swis\Laravel\Fulltext\Indexable;
 use BinshopsBlog\Interfaces\SearchResultInterface;
 use BinshopsBlog\Scopes\BinshopsBlogPublishedScope;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Class BinshopsBlogPost
@@ -167,7 +168,6 @@ class BinshopsBlogPost extends Model implements SearchResultInterface
         return "custom_blog_posts." . $this->use_view_file;
     }
 
-
     /**
      * Does this object have an uploaded image of that size...?
      *
@@ -180,40 +180,26 @@ class BinshopsBlogPost extends Model implements SearchResultInterface
         return strlen($this->{"image_" . $size});
     }
 
-    /**
-     * Get the full URL for an image
-     * You should use ::has_image($size) to check if the size is valid
-     *
-     * @param string $size - should be 'medium' , 'large' or 'thumbnail'
-     * @return string
-     */
-    public function image_url($size = 'medium')
+    public function imageUrl(string $sizeBasicKey = 'medium'): ?string
     {
-        $this->check_valid_image_size($size);
-        $filename = $this->{"image_" . $size};
-        return asset(config("binshopsblog.blog_upload_dir", "blog_images") . "/" . $filename);
+        // map 'medium' -> 'image_medium'
+        $column = str_starts_with($sizeBasicKey, 'image_') ? $sizeBasicKey : 'image_' . $sizeBasicKey;
+        $filename = $this->{$column} ?? null;
+        if (!$filename) return null;
+
+        $disk = config('binshopsblog.image_disk', 'public');
+        $dir  = trim(config('binshopsblog.blog_upload_dir', 'blog'), '/');
+        return Storage::disk($disk)->url($dir . '/' . $filename);
     }
 
-    /**
-     * Generate a full <img src='' alt=''> img tag
-     *
-     * @param string $size - large, medium, thumbnail
-     * @param boolean $auto_link - if true then itll add <a href=''>...</a> around the <img> tag
-     * @param null|string $img_class - if you want any additional CSS classes for this tag for the <IMG>
-     * @param null|string $anchor_class - is you want any additional CSS classes in the <a> anchor tag
-     * @return string
-     */
-    public function image_tag($size = 'medium', $auto_link = true, $img_class = null, $anchor_class = null)
+    public function image_tag(string $sizeBasicKey = 'medium', bool $lazy = true, string $class = ''): string
     {
-        if (!$this->has_image($size)) {
-            // return an empty string if this image does not exist.
-            return '';
-        }
-        $url = e($this->image_url($size));
-        $alt = e($this->title);
-        $img = "<img src='$url' alt='$alt' class='" . e($img_class) . "' >";
-        return $auto_link ? "<a class='" . e($anchor_class) . "' href='" . e($this->url()) . "'>$img</a>" : $img;
+        $url = $this->imageUrl($sizeBasicKey);
+        if (!$url) return '';
 
+        $attr = $class ? ' class="'.e($class).'"' : '';
+        $loading = $lazy ? ' loading="lazy"' : '';
+        return '<img src="'.e($url).'" alt="'.e($this->title ?? '').'"'.$attr.$loading.' />';
     }
 
     public function generate_introduction($max_len = 500)
@@ -254,7 +240,6 @@ class BinshopsBlogPost extends Model implements SearchResultInterface
         return $return;
     }
 
-
     /**
      * Throws an exception if $size is not valid
      * It should be either 'large','medium','thumbnail'
@@ -264,8 +249,6 @@ class BinshopsBlogPost extends Model implements SearchResultInterface
      */
     protected function check_valid_image_size(string $size = 'medium')
     {
-
-
         if (array_key_exists("image_" . $size, config("binshopsblog.image_sizes"))) {
             return true;
         }
@@ -288,7 +271,6 @@ class BinshopsBlogPost extends Model implements SearchResultInterface
 
         throw new \InvalidArgumentException("BinshopsBlogPost image size should be 'large','medium','thumbnail' or another field as defined in config/binshopsblog.php. Provided size ($size) is not valid");
     }
-
 
     /**
      *

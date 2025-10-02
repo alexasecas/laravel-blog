@@ -9,6 +9,7 @@ use BinshopsBlog\Models\BinshopsBlogUploadedPhoto;
 use File;
 use BinshopsBlog\Requests\UploadImageRequest;
 use BinshopsBlog\Traits\UploadFileTrait;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Class BinshopsBlogAdminController
@@ -164,23 +165,25 @@ class BinshopsBlogImageUploadController extends Controller
     }
 
     // Delete the entire upload log + all its variants
-    public function deleteUploadLog(\BinshopsBlog\Models\BinshopsBlogUploadedPhoto $uploadedPhoto)
+    public function deleteUploadLog(Request $request)
     {
+        $uploadedPhoto = BinshopsBlogUploadedPhoto::findOrFail($request->input('uploaded_photo_id'));
+
         $disk = config('binshopsblog.image_disk', 'public');
         $dir  = trim(str_replace('\\','/', config('binshopsblog.blog_upload_dir', 'images')), '/');
 
-        foreach ((array)$uploadedPhoto->uploaded_images as $f) {
+        foreach ((array) $uploadedPhoto->uploaded_images as $f) {
             if (!empty($f['filename'])) {
                 $base = ltrim(str_replace('\\','/',$f['filename']), '/');
                 $key  = $dir ? "$dir/$base" : $base;
                 $key  = preg_replace('~[\\\\/]+~','/',$key);
-                \Storage::disk($disk)->delete($key);
+                Storage::disk($disk)->delete($key);
             }
         }
 
         $uploadedPhoto->delete();
         \BinshopsBlog\Helpers::flash_message('Upload entry and all variants removed.');
 
-        return redirect(request('return', route('binshopsblog.admin.images.all')));
+        return redirect($request->input('return', route('binshopsblog.admin.images.all')));
     }
 }

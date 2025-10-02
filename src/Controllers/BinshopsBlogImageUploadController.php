@@ -160,7 +160,7 @@ class BinshopsBlogImageUploadController extends Controller
         }
 
         \BinshopsBlog\Helpers::flash_message('Image variant removed.');
-        return redirect($request->input('return', route('binshopsblog.admin.uploads.index')));
+        return redirect($request->input('return', route('binshopsblog.admin.images.all')));
     }
 
     // Delete the entire upload log + all its variants
@@ -181,6 +181,6 @@ class BinshopsBlogImageUploadController extends Controller
         $uploadedPhoto->delete();
         \BinshopsBlog\Helpers::flash_message('Upload entry and all variants removed.');
 
-        return redirect(request('return', route('binshopsblog.admin.uploads.index')));
+        return redirect(request('return', route('binshopsblog.admin.images.all')));
     }
 }

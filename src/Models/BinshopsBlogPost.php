@@ -187,8 +187,8 @@ class BinshopsBlogPost extends Model implements SearchResultInterface
         if (!$filename) return null;
 
         $disk = config('binshopsblog.image_disk', 'public');
-        
-        $dirRaw = config('binshopsblog.blog_upload_dir', 'blog');
+
+        $dirRaw = config('binshopsblog.blog_upload_dir', 'images');
         $dir    = trim(str_replace('\\', '/', (string) $dirRaw), '/');
         $filenameNorm = ltrim(str_replace('\\', '/', (string) $filename), '/');
 

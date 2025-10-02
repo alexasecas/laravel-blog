@@ -2,6 +2,7 @@
 namespace BinshopsBlog;
 
 use \Session;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Class Helpers
@@ -68,4 +69,14 @@ class Helpers
         return config("binshopsblog.image_sizes");
     }
 
+    public static function storage_url_clean(string $disk, string $key): string
+    {
+        // normalize key defensively
+        $key = preg_replace('~[\\\\/]+~', '/', $key);
+        $url = Storage::disk($disk)->url($key);
+
+        // In case any adapter or proxy encoded a backslash, fix the URL too
+        return str_replace(['\\', '%5C', '%5c'], '/', $url);
+    }
+        
 }

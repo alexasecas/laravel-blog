@@ -19,6 +19,8 @@ use BinshopsBlog\Requests\UpdateBinshopsBlogPostRequest;
 use BinshopsBlog\Traits\UploadFileTrait;
 use Swis\Laravel\Fulltext\Search;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 /**
  * Class BinshopsBlogAdminController
@@ -269,15 +271,34 @@ class BinshopsBlogAdminController extends Controller
         if (!config("binshopsblog.search.search_enabled")) {
             throw new \Exception("Search is disabled");
         }
-        $query = $request->get("s");
-        $search = new Search();
-        $search_results = $search->run($query);
+
+        $query = (string) $request->get("s", '');
+        $results = (new Search())->run($query); // array|Collection
+
+        // normalize to a Collection
+        $all = $results instanceof Collection ? $results : collect($results);
+
+        // paginate the in-memory results
+        $perPage = 20;
+        $page    = LengthAwarePaginator::resolveCurrentPage(); // from ?page=
+        $slice   = $all->forPage($page, $perPage)->values();
+
+        $posts = new LengthAwarePaginator(
+            $slice,
+            $all->count(),
+            $perPage,
+            $page,
+            [
+                'path'  => $request->url(),          // base path
+                'query' => $request->query(),        // keep ?s=... on links
+            ]
+        );
 
         \View::share("title", "Search results for " . e($query));
 
         return view("binshopsblog_admin::index", [
             'search' => true,
-            'posts'=>$search_results
+            'posts'  => $posts,                     // now supports ->links()
         ]);
     }
 }

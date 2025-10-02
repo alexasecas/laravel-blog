@@ -124,5 +124,63 @@ class BinshopsBlogImageUploadController extends Controller
 
     }
 
+    // Delete a single file variant by key/filename and optionally prune log JSON
+    public function deleteFileVariant(Request $request)
+    {
+        $request->validate([
+            'key'       => 'required|string',
+            'filename'  => 'required|string',
+            'image_id'  => 'nullable|integer',
+            'cleanup_log' => 'nullable|boolean',
+            'return'    => 'nullable|url',
+        ]);
 
+        $disk = config('binshopsblog.image_disk', 'public');
+        $key  = preg_replace('~[\\\\/]+~', '/', ltrim($request->string('key'), '/'));
+
+        \Storage::disk($disk)->delete($key);
+
+        if ($request->boolean('cleanup_log') && $request->filled('image_id')) {
+            $photo = \BinshopsBlog\Models\BinshopsBlogUploadedPhoto::find($request->integer('image_id'));
+            if ($photo) {
+                $imgs = (array) $photo->uploaded_images;
+                foreach ($imgs as $slot => $meta) {
+                    if (($meta['filename'] ?? null) === $request->string('filename')) {
+                        unset($imgs[$slot]);
+                    }
+                }
+                // If no variants left, delete log row; else save pruned JSON
+                if (empty($imgs)) {
+                    $photo->delete();
+                } else {
+                    $photo->uploaded_images = $imgs;
+                    $photo->save();
+                }
+            }
+        }
+
+        \BinshopsBlog\Helpers::flash_message('Image variant removed.');
+        return redirect($request->input('return', route('binshopsblog.admin.uploads.index')));
+    }
+
+    // Delete the entire upload log + all its variants
+    public function deleteUploadLog(\BinshopsBlog\Models\BinshopsBlogUploadedPhoto $uploadedPhoto)
+    {
+        $disk = config('binshopsblog.image_disk', 'public');
+        $dir  = trim(str_replace('\\','/', config('binshopsblog.blog_upload_dir', 'images')), '/');
+
+        foreach ((array)$uploadedPhoto->uploaded_images as $f) {
+            if (!empty($f['filename'])) {
+                $base = ltrim(str_replace('\\','/',$f['filename']), '/');
+                $key  = $dir ? "$dir/$base" : $base;
+                $key  = preg_replace('~[\\\\/]+~','/',$key);
+                \Storage::disk($disk)->delete($key);
+            }
+        }
+
+        $uploadedPhoto->delete();
+        \BinshopsBlog\Helpers::flash_message('Upload entry and all variants removed.');
+
+        return redirect(request('return', route('binshopsblog.admin.uploads.index')));
+    }
 }

@@ -72,6 +72,9 @@ Route::group(['middleware' => ['web'], 'namespace' => '\BinshopsBlog\Controllers
 
             Route::get("/upload", "BinshopsBlogImageUploadController@create")->name("binshopsblog.admin.images.upload");
             Route::post("/upload", "BinshopsBlogImageUploadController@store")->name("binshopsblog.admin.images.store");
+
+            Route::delete('/delete', 'BinshopsBlogImageUploadController@deleteFileVariant')->name('binshopsblog.admin.images.delete');
+            Route::delete('/deleteLog', 'BinshopsBlogImageUploadController@deleteUploadLog')->name('binshopsblog.admin.images.delete_log');
         });
 
         Route::delete('/delete_post/{blogPostId}',

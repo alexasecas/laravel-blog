@@ -143,9 +143,9 @@
             @endif
                     ">
                 @if($post->has_image($size_info['basic_key']))
-                    <div style='max-width:55px;  ' class='float-right m-2'>
-                        <a style='cursor: zoom-in;' target='_blank' href='{{$post->image_url($size_info['basic_key'])}}'>
-                                <?=$post->image_tag($size_info['basic_key'], false, 'd-block mx-auto img-fluid '); ?>
+                    <div style="max-width:55px;" class="float-right m-2">
+                        <a style="cursor: zoom-in;" target="_blank" href="{{ $post->image_url($size_info['basic_key']) }}">
+                        {!! $post->image_tag($size_info['basic_key'], false, 'd-block mx-auto img-fluid') !!}
                         </a>
                     </div>
                 @endif
@@ -174,7 +174,6 @@
 @else
     <div class='alert alert-warning'>Image uploads were disabled in binshopsblog.php config</div>
 @endif
-
 
 <div class='bg-white pt-4 px-4 pb-0 my-2 mb-4 rounded border'>
     <h4>Categories:</h4>

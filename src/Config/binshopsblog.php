@@ -24,7 +24,7 @@ return [
     'image_upload_enabled' => true, // true or false, if image uploading is allowed.
 
     'image_disk' => 'public',
-    'blog_upload_dir' => "blog_images",
+    'blog_upload_dir' => "images",
 
 
     'memory_limit' => '2048M', // This is used when uploading images :

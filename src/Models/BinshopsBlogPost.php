@@ -182,14 +182,17 @@ class BinshopsBlogPost extends Model implements SearchResultInterface
 
     public function imageUrl(string $sizeBasicKey = 'medium'): ?string
     {
-        // map 'medium' -> 'image_medium'
-        $column = str_starts_with($sizeBasicKey, 'image_') ? $sizeBasicKey : 'image_' . $sizeBasicKey;
+        $column   = str_starts_with($sizeBasicKey, 'image_') ? $sizeBasicKey : 'image_'.$sizeBasicKey;
         $filename = $this->{$column} ?? null;
         if (!$filename) return null;
 
         $disk = config('binshopsblog.image_disk', 'public');
-        $dir  = trim(config('binshopsblog.blog_upload_dir', 'blog'), '/');
-        return Storage::disk($disk)->url($dir . '/' . $filename);
+        $dir  = trim(str_replace('\\', '/', config('binshopsblog.blog_upload_dir', 'blog')), '/');
+
+        // Build normalized key (no leading slash, no backslashes)
+        $key = ltrim($dir . '/' . ltrim(str_replace('\\', '/', $filename), '/'), '/');
+
+        return \Storage::disk($disk)->url($key);
     }
 
     public function image_tag(string $sizeBasicKey = 'medium', bool $lazy = true, string $class = ''): string

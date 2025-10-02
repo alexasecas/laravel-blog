@@ -68,7 +68,9 @@ trait UploadFileTrait
 
     protected function imageDir(): string
     {
-        return trim(config('binshopsblog.blog_upload_dir', 'blog'), '/');
+        $dir = config('binshopsblog.blog_upload_dir', 'blog');
+        $dir = str_replace('\\', '/', $dir);    // normalize backslashes → slashes
+        return trim($dir, '/');                 // drop leading/trailing slashes
     }
 
     protected function UploadAndResize(BinshopsBlogPost $new_blog_post = null, $suggested_title, $image_size_details, $photo)
@@ -85,7 +87,7 @@ trait UploadFileTrait
 
         $disk = $this->imageDisk();          // e.g. 'public' or 'blog' (S3)
         $dir  = $this->imageDir();           // e.g. 'blog'
-        $path = $dir . '/' . $image_filename;
+        $path = ltrim($dir . '/' . $image_filename, '/');
 
         // Resize with Intervention Image
         // (keeps your existing alias; switch to Image::read if you use Intervention v3)

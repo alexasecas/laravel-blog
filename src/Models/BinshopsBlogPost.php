@@ -209,7 +209,6 @@ class BinshopsBlogPost extends Model implements SearchResultInterface
         return '<img src="'.e($url).'" alt="'.e($this->title ?? '').'"'.$attr.$loading.' />';
     }
 
-
     public function generate_introduction($max_len = 500)
     {
         $base_text_to_use = $this->short_description;
